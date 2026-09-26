@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>StockSense — Inventory Management</title>
+<style>
+:root{
+  --navy:#12213a; --navy2:#1b3055; --amber:#e2a13d; --bg:#f4f5f7; --card:#ffffff;
+  --ink:#20242c; --sub:#6b7280; --line:#e2e4e9; --ok:#3f8f5f; --warn:#c98a1f; --bad:#c1443d;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --bg:#0f1115; --card:#171a21; --ink:#e7e8ea; --sub:#9aa0aa; --line:#2a2e37; }
+}
+:root[data-theme="dark"]{ --bg:#0f1115; --card:#171a21; --ink:#e7e8ea; --sub:#9aa0aa; --line:#2a2e37; }
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Arial,sans-serif;height:100%}
+html,body{height:100%}
+code,.mono,.num{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+button{font-family:inherit;cursor:pointer}
+input,select{font-family:inherit}
+a{color:inherit}
+
+/* ---------- AUTH ---------- */
+#auth{min-height:100%;display:flex;align-items:center;justify-content:center;padding:24px}
+.authbox{width:100%;max-width:380px;background:var(--card);border:1px solid var(--line);padding:32px}
+.brand{font-size:13px;letter-spacing:.04em;color:var(--sub);margin-bottom:4px}
+.brand b{color:var(--amber)}
+.authbox h1{font-size:22px;margin:0 0 20px;font-weight:700}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12px;color:var(--sub);margin-bottom:5px}
+.field input,.field select{width:100%;padding:9px 10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:14px}
+.btn{display:inline-block;border:1px solid var(--navy);background:var(--navy);color:#fff;padding:10px 16px;font-size:14px;font-weight:600;width:100%}
+.btn.amber{background:var(--amber);border-color:var(--amber);color:#1a1300}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line);width:auto}
+.linklike{background:none;border:none;color:var(--navy2);text-decoration:underline;font-size:13px;padding:0;width:auto}
+:root[data-theme="dark"] .linklike, body:not([data-theme=light]) .linklike{color:#8fb3ee}
+.err{color:var(--bad);font-size:13px;margin:8px 0}
+.msg{color:var(--ok);font-size:13px;margin:8px 0}
+.switchline{margin-top:16px;font-size:13px;color:var(--sub);text-align:center}
+.otpbox{background:var(--bg);border:1px dashed var(--sub);padding:10px;font-size:13px;margin-bottom:14px}
+
+/* ---------- APP SHELL ---------- */
+#app{display:none;height:100%}
+.shell{display:grid;grid-template-columns:220px 1fr;height:100%}
+.side{background:var(--navy);color:#cfd6e4;padding:18px 0;display:flex;flex-direction:column;padding-top:calc(18px + env(safe-area-inset-top,0px))}
+.side .logo{padding:0 20px 18px;font-weight:700;color:#fff;font-size:16px;border-bottom:1px solid #22355a}
+.side .logo span{color:var(--amber)}
+nav.navlist{padding:14px 0;flex:1;overflow-y:auto}
+nav.navlist .navitem{padding:10px 20px;font-size:13.5px;cursor:pointer;border-left:3px solid transparent;color:#c3cadd}
+nav.navlist .navitem:hover{background:#1b3055}
+nav.navlist .navitem.active{border-left-color:var(--amber);background:#1b3055;color:#fff;font-weight:600}
+nav.navlist .navitem.soon{opacity:.45;cursor:default}
+nav.navlist .navitem.soon:hover{background:none}
+.side .foot{padding:12px 20px;border-top:1px solid #22355a;font-size:12.5px}
+.side .foot .who{color:#fff;margin-bottom:8px}
+.side .foot button{background:none;border:none;color:#c3cadd;padding:0;font-size:12.5px;text-decoration:underline}
+
+.main{overflow-y:auto;padding:22px 26px calc(26px + env(safe-area-inset-bottom,0px))}
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;gap:16px;flex-wrap:wrap}
+.topbar h2{margin:0;font-size:20px}
+
+.kpirow{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:22px}
+.kpi{background:var(--card);border:1px solid var(--line);padding:14px}
+.kpi .n{font-size:26px;font-weight:700}
+.kpi .l{font-size:12px;color:var(--sub);margin-top:2px}
+.kpi.bad .n{color:var(--bad)}
+
+.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.filters select{padding:7px 8px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:13px}
+
+table{width:100%;border-collapse:collapse;background:var(--card);font-size:13.5px}
+thead th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--sub);border-bottom:1px solid var(--line);padding:9px 10px;font-weight:600}
+tbody td{padding:9px 10px;border-bottom:1px solid var(--line)}
+tbody tr:hover{background:rgba(226,161,61,.06)}
+.tablewrap{border:1px solid var(--line);overflow-x:auto}
+
+.tag{display:inline-block;padding:2px 8px;font-size:11.5px;border-left:3px solid var(--sub);background:var(--bg)}
+.tag.Draft{border-color:var(--sub)}
+.tag.Waiting{border-color:var(--warn)}
+.tag.Ready{border-color:#3b6fb5}
+.tag.Done{border-color:var(--ok)}
+.tag.Canceled{border-color:var(--bad);text-decoration:line-through}
+
+.smallbtn{border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:6px 10px;font-size:12.5px}
+.empty{padding:28px;text-align:center;color:var(--sub);font-size:13.5px}
+.help{font-size:12px;color:var(--sub);margin-top:10px}
+@media (max-width:900px){.shell{grid-template-columns:1fr}.side{display:none}.kpirow{grid-template-columns:repeat(2,1fr)}
+  .mobtoggle{display:inline-block!important}}
+.mobtoggle{display:none;background:var(--navy);color:#fff;border:none;padding:8px 12px;font-size:13px;margin-bottom:12px}
+</style>
+</head>
+<body>
+
+<div id="auth">
+  <div class="authbox" id="authbox"></div>
+</div>
+
+<div id="app">
+  <div class="shell">
+    <div class="side" id="side"></div>
+    <div class="main">
+      <button class="mobtoggle" onclick="document.querySelector('.side').style.display=document.querySelector('.side').style.display==='flex'?'none':'flex'">☰ Menu</button>
+      <div id="view"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------------- storage ---------------- */
+function load(k,d){ try{const v=localStorage.getItem('ss_'+k); return v?JSON.parse(v):d;}catch(e){return d;} }
+function save(k,v){ try{localStorage.setItem('ss_'+k, JSON.stringify(v));}catch(e){} }
+
+let DB = load('db', null);
+if(!DB){
+  DB = {
+    users:[{email:'demo@stocksense.io',password:'demo1234',name:'Demo Manager'}],
+    session:null,
+    warehouses:[{id:'WH1',name:'Main Warehouse'},{id:'WH2',name:'Warehouse 2'}],
+    locations:[
+      {id:'L1',wh:'WH1',name:'Main Store'},{id:'L2',wh:'WH1',name:'Production Rack'},
+      {id:'L3',wh:'WH1',name:'Rack A'},{id:'L4',wh:'WH1',name:'Rack B'},
+      {id:'L5',wh:'WH2',name:'Receiving Bay'}
+    ],
+    categories:['Raw Material','Finished Goods','Components'],
+    products:[
+      {id:'P1',name:'Steel Rods',sku:'STL-ROD-01',cat:'Raw Material',uom:'kg',reorder:50,stock:{L1:120}},
+      {id:'P2',name:'Steel Frames',sku:'STL-FRM-01',cat:'Finished Goods',uom:'unit',reorder:10,stock:{L2:40}},
+      {id:'P3',name:'Office Chairs',sku:'CHR-OFF-01',cat:'Finished Goods',uom:'unit',reorder:15,stock:{L1:30}}
+    ],
+    receipts:[], deliveries:[], transfers:[], adjustments:[], ledger:[],
+    seq:1
+  };
+  save('db',DB);
+}
+function persist(){ save('db',DB); }
+function totalStock(p){ return Object.values(p.stock||{}).reduce((a,b)=>a+b,0); }
+
+/* ---------------- AUTH VIEWS ---------------- */
+let authMode='login'; let otpCache=null;
+function renderAuth(){
+  const el=document.getElementById('authbox'); let h='';
+  const brand='<div class="brand">STOCK<b>SENSE</b> · Inventory Management</div>';
+  if(authMode==='login'){
+    h = brand + `<h1>Sign in</h1>
+    <div id="autherr"></div>
+    <div class="field"><label>Email</label><input id="li_email" type="email" placeholder="you@company.com"></div>
+    <div class="field"><label>Password</label><input id="li_pass" type="password" placeholder="••••••••"></div>
+    <button class="btn" onclick="doLogin()">Sign in</button>
+    <div class="switchline">
+      <button class="linklike" onclick="authMode='signup';renderAuth()">Create an account</button> ·
+      <button class="linklike" onclick="authMode='forgot';renderAuth()">Forgot password?</button>
+    </div>
+    <div class="switchline" style="margin-top:10px;color:var(--sub)">Demo login: demo@stocksense.io / demo1234</div>`;
+  } else if(authMode==='signup'){
+    h = brand + `<h1>Create account</h1>
+    <div id="autherr"></div>
+    <div class="field"><label>Full name</label><input id="su_name" placeholder="Jane Doe"></div>
+    <div class="field"><label>Email</label><input id="su_email" type="email" placeholder="you@company.com"></div>
+    <div class="field"><label>Password</label><input id="su_pass" type="password" placeholder="Min 6 characters"></div>
+    <button class="btn amber" onclick="doSignup()">Sign up</button>
+    <div class="switchline"><button class="linklike" onclick="authMode='login';renderAuth()">Already have an account? Sign in</button></div>`;
+  } else if(authMode==='forgot'){
+    h = brand + `<h1>Reset password</h1>
+    <div id="autherr"></div>
+    <div class="field"><label>Account email</label><input id="fp_email" type="email" placeholder="you@company.com"></div>
+    <button class="btn ghost" style="width:100%" onclick="sendOtp()">Send OTP</button>
+    <div id="otpArea"></div>
+    <div class="switchline"><button class="linklike" onclick="authMode='login';renderAuth()">Back to sign in</button></div>`;
+  }
+  el.innerHTML=h;
+}
+function authError(msg){ document.getElementById('autherr').innerHTML='<div class="err">'+msg+'</div>'; }
+function doLogin(){
+  const email=document.getElementById('li_email').value.trim().toLowerCase();
+  const pass=document.getElementById('li_pass').value;
+  const u=DB.users.find(x=>x.email.toLowerCase()===email && x.password===pass);
+  if(!u){ authError('Incorrect email or password.'); return; }
+  DB.session=u.email; persist(); boot();
+}
+function doSignup(){
+  const name=document.getElementById('su_name').value.trim();
+  const email=document.getElementById('su_email').value.trim().toLowerCase();
+  const pass=document.getElementById('su_pass').value;
+  if(!name||!email||pass.length<6){ authError('Fill all fields — password needs 6+ characters.'); return; }
+  if(DB.users.some(x=>x.email.toLowerCase()===email)){ authError('An account with this email already exists.'); return; }
+  DB.users.push({email,password:pass,name}); DB.session=email; persist(); boot();
+}
+function sendOtp(){
+  const email=document.getElementById('fp_email').value.trim().toLowerCase();
+  if(!DB.users.some(x=>x.email.toLowerCase()===email)){ authError('No account found with that email.'); return; }
+  otpCache={email, code:String(Math.floor(100000+Math.random()*900000))};
+  document.getElementById('autherr').innerHTML='';
+  document.getElementById('otpArea').innerHTML = `
+    <div class="otpbox">Demo mode: your OTP is <b class="mono">${otpCache.code}</b> (normally emailed to you).</div>
+    <div class="field"><label>Enter OTP</label><input id="fp_otp" placeholder="6-digit code"></div>
+    <div class="field"><label>New password</label><input id="fp_new" type="password" placeholder="Min 6 characters"></div>
+    <button class="btn" onclick="resetPass()">Reset password</button>`;
+}
+function resetPass(){
+  const code=document.getElementById('fp_otp').value.trim();
+  const np=document.getElementById('fp_new').value;
+  if(!otpCache||code!==otpCache.code){ authError('Incorrect OTP.'); return; }
+  if(np.length<6){ authError('Password needs 6+ characters.'); return; }
+  const u=DB.users.find(x=>x.email===otpCache.email); u.password=np; persist();
+  document.getElementById('otpArea').innerHTML='<div class="msg">Password reset. You can sign in now.</div>';
+  setTimeout(()=>{authMode='login';renderAuth();},1200);
+}
+function logout(){ DB.session=null; persist(); document.getElementById('app').style.display='none'; document.getElementById('auth').style.display='flex'; authMode='login'; renderAuth(); }
+
+/* ---------------- APP SHELL ---------------- */
+let currentView='dashboard';
+/* Only Dashboard exists for now. More nav items get added as their pages are built. */
+const NAVS=[
+  ['dashboard','Dashboard',true]
+];
+function boot(){
+  document.getElementById('auth').style.display='none';
+  document.getElementById('app').style.display='block';
+  renderSide(); go('dashboard');
+}
+function renderSide(){
+  const u=DB.users.find(x=>x.email===DB.session);
+  document.getElementById('side').innerHTML = `
+    <div class="logo">STOCK<span>SENSE</span></div>
+    <nav class="navlist">${NAVS.map(n=>`<div class="navitem${n[0]===currentView?' active':''}${n[2]?'':' soon'}" ${n[2]?`onclick="go('${n[0]}')"`:'title="Coming soon"'}>${n[1]}</div>`).join('')}</nav>
+    <div class="foot"><div class="who">${u?u.name:''}</div><button onclick="logout()">Log out</button></div>`;
+}
+function go(v){ currentView=v; renderSide(); render(); }
+function render(){
+  const el=document.getElementById('view');
+  if(currentView==='dashboard') return renderDashboard(el);
+}
+
+/* ---------------- DASHBOARD ---------------- */
+function renderDashboard(el){
+  const totalProducts=DB.products.length;
+  const low=DB.products.filter(p=>totalStock(p)>0 && totalStock(p)<=p.reorder).length;
+  const out=DB.products.filter(p=>totalStock(p)<=0).length;
+  const pendingR=DB.receipts.filter(d=>d.status!=='Done'&&d.status!=='Canceled').length;
+  const pendingD=DB.deliveries.filter(d=>d.status!=='Done'&&d.status!=='Canceled').length;
+  const schedT=DB.transfers.filter(d=>d.status!=='Done'&&d.status!=='Canceled').length;
+
+  let all=[];
+  DB.receipts.forEach(d=>all.push(Object.assign({type:'Receipt'},d)));
+  DB.deliveries.forEach(d=>all.push(Object.assign({type:'Delivery'},d)));
+  DB.transfers.forEach(d=>all.push(Object.assign({type:'Internal'},d)));
+  DB.adjustments.forEach(d=>all.push(Object.assign({type:'Adjustment'},d)));
+  all.sort((a,b)=>(b.created||'').localeCompare(a.created||''));
+
+  el.innerHTML = `
+  <div class="topbar"><h2>Dashboard</h2></div>
+  <div class="kpirow">
+    <div class="kpi"><div class="n">${totalProducts}</div><div class="l">Total products</div></div>
+    <div class="kpi ${low?'bad':''}"><div class="n">${low}</div><div class="l">Low stock</div></div>
+    <div class="kpi ${out?'bad':''}"><div class="n">${out}</div><div class="l">Out of stock</div></div>
+    <div class="kpi"><div class="n">${pendingR}</div><div class="l">Pending receipts</div></div>
+    <div class="kpi"><div class="n">${pendingD}</div><div class="l">Pending deliveries</div></div>
+  </div>
+  <div class="filters">
+    <select id="f_type"><option value="">All document types</option><option>Receipt</option><option>Delivery</option><option>Internal</option><option>Adjustment</option></select>
+    <select id="f_status"><option value="">All statuses</option><option>Draft</option><option>Waiting</option><option>Ready</option><option>Done</option><option>Canceled</option></select>
+    <select id="f_wh"><option value="">All warehouses</option>${DB.warehouses.map(w=>`<option value="${w.id}">${w.name}</option>`).join('')}</select>
+    <button class="smallbtn" onclick="applyDashFilter()">Apply</button>
+  </div>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Document</th><th>Type</th><th>Warehouse</th><th>Status</th><th>Created</th></tr></thead>
+    <tbody id="dashRows"></tbody>
+  </table></div>
+  <div class="help">Internal transfers scheduled: ${schedT} · No documents yet — this fills in once Receipts, Deliveries, Transfers and Adjustments are wired up.</div>`;
+  window._dashAll=all;
+  paintDashRows(all);
+}
+function paintDashRows(list){
+  const tb=document.getElementById('dashRows');
+  if(!list.length){ tb.innerHTML='<tr><td colspan="5" class="empty">No documents match these filters.</td></tr>'; return; }
+  tb.innerHTML = list.slice(0,25).map(d=>`<tr><td class="mono">${d.ref}</td><td>${d.type}</td><td>${DB.warehouses.find(w=>w.id===d.wh)?.name||'—'}</td><td><span class="tag ${d.status}">${d.status}</span></td><td>${(d.created||'').slice(0,10)}</td></tr>`).join('');
+}
+function applyDashFilter(){
+  const t=document.getElementById('f_type').value, s=document.getElementById('f_status').value, w=document.getElementById('f_wh').value;
+  paintDashRows(window._dashAll.filter(d=>(!t||d.type===t)&&(!s||d.status===s)&&(!w||d.wh===w)));
+}
+
+/* ---------------- BOOT ---------------- */
+renderAuth();
+if(DB.session && DB.users.some(u=>u.email===DB.session)){ boot(); }
+</script>
+</body>
+</html>
